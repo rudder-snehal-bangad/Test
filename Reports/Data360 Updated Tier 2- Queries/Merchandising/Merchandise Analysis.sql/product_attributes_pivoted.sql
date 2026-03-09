@@ -1,0 +1,35 @@
+let
+    BillingProject = BillingProjectID,
+    Dataset = DatasetName,
+
+    SQLQuery = "
+SELECT 
+product.id,
+product.code as product_code,
+attr.attribute_name,
+attr.value as attribute_value
+FROM " & BillingProject & "." & Dataset & ".products product 
+left join UNNEST(attributes) as attr
+",
+
+    Source =
+        Value.NativeQuery(
+            GoogleBigQuery.Database(
+                [BillingProject = BillingProject, UseStorageApi = false]
+            ){[Name = BillingProject]}[Data],
+            SQLQuery,
+            null,
+            [EnableFolding = true]
+        ),
+
+    #"Replaced Value" = Table.ReplaceValue(Source,"_"," ",Replacer.ReplaceText,{"attribute_name"}),
+    #"Capitalized Each Word" = Table.TransformColumns(#"Replaced Value",{{"attribute_name", Text.Proper, type text}}),
+    #"Replaced Value1" = Table.ReplaceValue(#"Capitalized Each Word","-"," ",Replacer.ReplaceText,{"attribute_name"}),
+    #"Replaced Value2" = Table.ReplaceValue(#"Replaced Value1","Sku","SKU",Replacer.ReplaceText,{"attribute_name"}),
+    #"Replaced Value3" = Table.ReplaceValue(#"Replaced Value2","Ba","BA",Replacer.ReplaceText,{"attribute_name"}),
+    #"Replaced Value4" = Table.ReplaceValue(#"Replaced Value3","-"," ",Replacer.ReplaceText,{"attribute_name"}),
+    #"Replaced Value5" = Table.ReplaceValue(#"Replaced Value4",null,"(Blank)",Replacer.ReplaceValue,{"attribute_name"}),
+    #"Sorted Rows1" = Table.Sort(#"Replaced Value5",{{"attribute_name", Order.Ascending}}),
+    #"Pivoted Column" = Table.Pivot(#"Sorted Rows1", List.Distinct(#"Sorted Rows1"[attribute_name]), "attribute_name", "attribute_value")
+in
+    #"Pivoted Column"
