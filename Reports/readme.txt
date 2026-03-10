@@ -1,1 +1,1 @@
-This is a test file, please do not edit
+This folder holds the queries and PBI reports/dashboards for all data360 reports.
